@@ -4,11 +4,12 @@ from pygame.locals import *
 class Points():
 
     def draw_point(self,cords,color):
-        pygame.draw.circle(DISPLAYSURF,color,(cords[0],cords[1]),3)
-   
-    def __init__(self,cords=(0,0),checked=False):
+        point = pygame.draw.circle(DISPLAYSURF,color,(cords[0],cords[1]),5)
+
+    def __init__(self,cords=(0,0),checked=False,pointradius=pygame.Rect):
         self.cords = cords
         self.checked = checked
+        self.point_radius = pointradius
 
     def __repr__(self):
         return(str(self.cords))
@@ -43,11 +44,13 @@ def draw_points():
     for i in range(1,boardwidth+2):
         for z in range(1,boardheight+2):
             if cnt%2 == 0:
-                pygame.draw.circle(DISPLAYSURF,BLUE,(size*i,size*z),3)    
+                pygame.draw.circle(DISPLAYSURF,BLUE,(size*i,size*z),5)  
+                point_radius = pygame.draw.circle(DISPLAYSURF,WHITE,(size*i,size*z),10)  
             else:
-                pygame.draw.circle(DISPLAYSURF,BLUE,(size*i,size*z),3)
+                pygame.draw.circle(DISPLAYSURF,BLUE,(size*i,size*z),5)
+                point_radius = pygame.draw.circle(DISPLAYSURF,WHITE,(size*i,size*z),10)
             x = (size*i,size*z)
-            POINTS_pos.append(Points(x))    
+            POINTS_pos.append(Points(x,pointradius=point_radius))    
             cnt+=1
         cnt -= 1
     pygame.draw.rect(DISPLAYSURF,BLACK,[size,size,boardwidth*size,boardheight*size],1)
@@ -60,12 +63,9 @@ def check_position(mouse_, points_):
     mouse_cords = mouse_   
 
     for obj in points_cords:
-        #print('Mouse',mouse_cords)
-        #print('POINTS',obj.cords)
-        
 
-        if mouse_cords in range(obj.cords-5,obj.cords+5):
-            print('True')
+        if obj.point_radius.collidepoint(mouse_cords):
+            
             obj.checked = True
         else:
             obj.checked = False
