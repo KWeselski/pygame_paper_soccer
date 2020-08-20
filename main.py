@@ -35,7 +35,7 @@ GREEN = (0, 255, 0)
 
 size = 50
 boardwidth = 8
-boardheight = 10
+boardheight = 11
 
 mouse_x = 0
 mouse_y = 0
@@ -52,10 +52,52 @@ LINES = []
 
 DISPLAYSURF.fill(WHITE)
 
+point_for_skip = [(1,1),(1,2),(1,3),(1,7),(1,8),(1,9),
+                (boardheight+1,1),(boardheight+1,2),(boardheight+1,3),
+                (boardheight+1,7),(boardheight+1,8),(boardheight+1,9)]
+
+
+def draw_court(Points_list):
+    left_side_idx = [x for x in range(0,10)]
+    right_side_idx = [y for y in range(86,96)]
+    down_side_idx = [9,19,29,40,41,53,65,64,75,85,95]
+    up_side_idx = [0,10,20,31,30,42,54,55,66,76,86]
+    draw_line_in_court(left_side_idx)
+    draw_line_in_court(right_side_idx)
+    draw_line_unsorted_in_court(up_side_idx)
+    draw_line_unsorted_in_court(down_side_idx)
+    
+def draw_line_unsorted_in_court(list_):
+    points_in = []
+    for x in list_:
+        for idx,point in enumerate(POINTS_pos):
+            if x == idx:
+                points_in.append(point)
+        for x in range(0,len(points_in)-1):
+            start = (points_in[x].point_pos.centerx,points_in[x].point_pos.centery)
+            end = (points_in[x+1].point_pos.centerx,points_in[x+1].point_pos.centery)
+            line = (start,end)
+            pygame.draw.line(DISPLAYSURF,BLACK,line[0],line[1],3)
+            LINES.append(line)
+
+def draw_line_in_court(list_):
+    points_in = []
+    for idx,point in enumerate(POINTS_pos):
+        if idx in list_:
+            points_in.append(point)
+        for x in range(0,len(points_in)-1):
+            start = (points_in[x].point_pos.centerx,points_in[x].point_pos.centery)
+            end = (points_in[x+1].point_pos.centerx,points_in[x+1].point_pos.centery)
+            line = (start,end)
+            pygame.draw.line(DISPLAYSURF,BLACK,line[0],line[1],3)
+            LINES.append(line)
+
 def draw_points():
     cnt = 0
     for i in range(1,boardwidth+2):
         for z in range(1,boardheight+2):
+            if (z,i) in point_for_skip:
+                continue
             if cnt%2 == 0:
                 point_radius = pygame.draw.circle(DISPLAYSURF,WHITE,(size*i,size*z),15) 
                 point_p=pygame.draw.circle(DISPLAYSURF,GREEN,(size*i,size*z),5)  
@@ -83,6 +125,12 @@ def check_position(ball_, points_):
             current_point_cord=obj.point_pos   
             return current_point_cord 
 
+def check_index():
+    mouse_cords = (mouse_x,mouse_y)  
+    for idx,obj in enumerate(POINTS_pos):
+        if obj.point_radius.collidepoint(mouse_cords):
+            print(idx)
+
 def find_near_points(point_p):
     cords = (point_p.centerx,point_p.centery)
     near_points = [(cords[0]-size,cords[1]+size),(cords[0],cords[1]+size),(cords[0]+size,cords[1]+size),
@@ -106,17 +154,15 @@ def pick_another_point(point_x):
     mouse_cords = (mouse_x,mouse_y)
 
     for obj in neigh:
-        print(obj.point_radius)
-        print(mouse_cords)
         if obj.point_radius.collidepoint(mouse_cords):
             obj.checked = True
-            print('Styka sie')
+           
         else:
             obj.checked = False
             
 
         if obj.checked == True:
-            print(point_x)
+           
             end_point = obj.cords
             line=((point_x.centerx,point_x.centery),end_point)
                 
@@ -128,7 +174,7 @@ def pick_another_point(point_x):
                 for x in POINTS_pos:
                     if x.cords == end_point:
                         current_point = x
-                        print(current_point)
+                
                         clear_display(POINTS_pos)
                         find_near_points(current_point.point_pos)
                         return current_point.point_pos
@@ -139,7 +185,8 @@ while True:
 
     if not POINTS_pos:
         BALL = (250,300) #Startowa pozycja
-        draw_points() #Rozrysuj punkty i in radius aby były łatwiejsze do wybierania       
+        draw_points() #Rozrysuj punkty i in radius aby były łatwiejsze do wybierania 
+        draw_court(POINTS_pos)      
         current_point = check_position(BALL,POINTS_pos)
         pick_another_point(current_point)
 
@@ -154,6 +201,7 @@ while True:
         elif event.type == MOUSEBUTTONUP:
             #isClicked=True   
             current_point = pick_another_point(current_point)
-
+        elif event.type == KEYDOWN:
+            check_index()
        
     pygame.display.update()
