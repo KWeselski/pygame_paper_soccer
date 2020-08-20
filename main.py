@@ -110,7 +110,7 @@ def draw_goal_points(z,i,list_):
     
 
 def draw_points():
-    goal_points_idx = [(1,4),(1,5),(1,6)]
+    goal_points_idx = [(1,4),(1,5),(1,6),(12,4),(12,5),(12,6)]
     cnt = 0
     for i in range(1,boardwidth+2):
         for z in range(1,boardheight+2):
@@ -183,7 +183,9 @@ def change_turn():
         player2.turn=True
         print('Tura dla: ', player2.name)
 
-
+def clear_lines(LINES):
+    for line in LINES:
+        pygame.draw.line(DISPLAYSURF,WHITE,line[0],line[1],4)
 
 def pick_another_point(point_x):
     neigh = find_near_points(point_x)
@@ -209,9 +211,12 @@ def pick_another_point(point_x):
                     if x.turn == True:
                         active_player = x               
                 pygame.draw.line(DISPLAYSURF,active_player.color,line[0],line[1],3)
-                print(obj.goalpoint)
+                
                 if obj.goalpoint == True:
                     print('GAME ENDED: PLAYER: ',active_player.name + ' WON!')
+                    clear_lines(LINES)
+                    POINTS_pos.clear()
+                    
                 LINES.append(line)          
                 for x in POINTS_pos:
                     if x.cords == end_point:
@@ -240,6 +245,7 @@ while True:
         PLAYERS.append(player1)
         PLAYERS.append(player2)
         player1.turn = True
+        LINES = []
         BALL = (250,300) #Startowa pozycja
         draw_points() #Rozrysuj punkty i in radius aby były łatwiejsze do wybierania 
         draw_court(POINTS_pos)      
@@ -258,6 +264,6 @@ while True:
             current_point = pick_another_point(current_point)
             
         elif event.type == KEYDOWN:
-            print_goal_points()
+            check_index()
        
     pygame.display.update()
