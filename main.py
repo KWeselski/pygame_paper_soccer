@@ -7,15 +7,23 @@ class Points():
     def draw_point(self,cords,color):
         point = pygame.draw.circle(DISPLAYSURF,color,(cords[0],cords[1]),5)
 
-    def __init__(self,cords=(0,0),checked=False,point_pos=pygame.Rect,pointradius=pygame.Rect):
+    def __init__(self,cords=(0,0),checked=False,point_pos=pygame.Rect,pointradius=pygame.Rect,goalpoint=False):
         self.cords = cords
         self.checked = checked
         self.point_pos = point_pos
         self.point_radius = pointradius
+        self.goalpoint=goalpoint
 
     def __repr__(self):
         return(str(self.cords))
 
+class Player():
+
+    def __init__(self,name,color,turn=False):    
+        self.name = name
+        self.color = color
+        self.turn = turn
+    
 
 
 pygame.init()
@@ -48,7 +56,7 @@ global first_move
 
 POINTS_pos = []
 LINES = []
-
+PLAYERS = []
 
 DISPLAYSURF.fill(WHITE)
 
@@ -62,10 +70,12 @@ def draw_court(Points_list):
     right_side_idx = [y for y in range(86,96)]
     down_side_idx = [9,19,29,40,41,53,65,64,75,85,95]
     up_side_idx = [0,10,20,31,30,42,54,55,66,76,86]
+    
     draw_line_in_court(left_side_idx)
     draw_line_in_court(right_side_idx)
     draw_line_unsorted_in_court(up_side_idx)
     draw_line_unsorted_in_court(down_side_idx)
+    
     
 def draw_line_unsorted_in_court(list_):
     points_in = []
@@ -92,7 +102,15 @@ def draw_line_in_court(list_):
             pygame.draw.line(DISPLAYSURF,BLACK,line[0],line[1],3)
             LINES.append(line)
 
+def draw_goal_points(z,i,list_):
+    for point in enumerate(POINTS_pos):
+        if (z,i) in list_:
+            point.goalpoint = True 
+    
+    
+
 def draw_points():
+    goal_points_idx = [(1,4),(1,5),(1,6)]
     cnt = 0
     for i in range(1,boardwidth+2):
         for z in range(1,boardheight+2):
@@ -107,11 +125,17 @@ def draw_points():
                 point_p =pygame.draw.circle(DISPLAYSURF,GREEN,(size*i,size*z),5)         
             x = (size*i,size*z)
             
-            POINTS_pos.append(Points(cords=x,point_pos=point_p,pointradius=point_radius))    
+            if (z,i) in goal_points_idx:
+                POINTS_pos.append(Points(cords=x,point_pos=point_p,pointradius=point_radius,goalpoint=True)) 
+                
+            else:
+                POINTS_pos.append(Points(cords=x,point_pos=point_p,pointradius=point_radius)) 
+              
             cnt+=1
         cnt -= 1
     pygame.draw.rect(DISPLAYSURF,BLACK,[size,size,boardwidth*size,boardheight*size],1)
-    
+
+
 
 def clear_display(points_):
     for obj in points_:
@@ -148,11 +172,23 @@ def find_near_points(point_p):
         obj.draw_point((obj.point_pos.centerx, obj.point_pos.centery),BLACK)
     
     return near_n
-    
+
+def change_turn():
+    if player1.turn == False:
+        player2.turn=False
+        player1.turn=True
+        print('Tura dla: ',player1.name)
+    else:
+        player1.turn=False
+        player2.turn=True
+        print('Tura dla: ', player2.name)
+
+
+
 def pick_another_point(point_x):
     neigh = find_near_points(point_x)
     mouse_cords = (mouse_x,mouse_y)
-
+    active_player=None
     for obj in neigh:
         if obj.point_radius.collidepoint(mouse_cords):
             obj.checked = True
@@ -169,21 +205,41 @@ def pick_another_point(point_x):
             if (line[0],line[1]) in LINES or (line[1],line[0]) in LINES:
                 print('Ta linia juz istnieje')
             else:
-                pygame.draw.line(DISPLAYSURF,BLACK,line[0],line[1],3)
+                for x in PLAYERS:
+                    if x.turn == True:
+                        active_player = x               
+                pygame.draw.line(DISPLAYSURF,active_player.color,line[0],line[1],3)
+                print(obj.goalpoint)
+                if obj.goalpoint == True:
+                    print('GAME ENDED: PLAYER: ',active_player.name + ' WON!')
                 LINES.append(line)          
                 for x in POINTS_pos:
                     if x.cords == end_point:
-                        current_point = x
-                
-                        clear_display(POINTS_pos)
+                        current_point = x             
+                        clear_display(POINTS_pos)          
                         find_near_points(current_point.point_pos)
+                        change_turn()
                         return current_point.point_pos
     current_point = point_x
     return current_point
-            
+
+def print_goal_points():
+    i=0
+    for idx,point in enumerate(POINTS_pos):
+        if point.goalpoint==True:
+            print(idx,point)
+        else:
+            i+=1
+    print(i)
+
 while True:
 
     if not POINTS_pos:
+        player1 = Player('Jacek',RED)
+        player2 = Player('Robert',BLUE)
+        PLAYERS.append(player1)
+        PLAYERS.append(player2)
+        player1.turn = True
         BALL = (250,300) #Startowa pozycja
         draw_points() #Rozrysuj punkty i in radius aby były łatwiejsze do wybierania 
         draw_court(POINTS_pos)      
@@ -198,10 +254,10 @@ while True:
             sys.exit()
         elif event.type == MOUSEMOTION:
             mouse_x, mouse_y = event.pos 
-        elif event.type == MOUSEBUTTONUP:
-            #isClicked=True   
+        elif event.type == MOUSEBUTTONUP:  
             current_point = pick_another_point(current_point)
+            
         elif event.type == KEYDOWN:
-            check_index()
+            print_goal_points()
        
     pygame.display.update()
