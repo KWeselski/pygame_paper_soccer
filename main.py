@@ -8,27 +8,29 @@ class Points():
     def draw_point(self,cords,color):
         point = pygame.draw.circle(DISPLAYSURF,color,(cords[0],cords[1]),5)
 
-    def __init__(self,cords=(0,0),checked=False,point_pos=pygame.Rect,pointradius=pygame.Rect,goalpoint=False):
+    def __init__(self,cords=(0,0),checked=False,point_pos=pygame.Rect,pointradius=pygame.Rect,p1_goal=False,p2_goal=False):
         self.cords = cords
         self.checked = checked
         self.point_pos = point_pos
         self.point_radius = pointradius
-        self.goalpoint=goalpoint
+        self.p1_goal=p1_goal
+        self.p2_goal=p2_goal
 
     def __repr__(self):
         return(str(self.cords))
 
 class Player():
 
-    def __init__(self,name,color,turn=False):    
+    def __init__(self,name,color,points=0,turn=False):    
         self.name = name
         self.color = color
         self.turn = turn
+        self.points = points
     
 pygame.init()
 
-WINDOWWIDTH = 480
-WINDOWHEIGHT = 640
+WINDOWWIDTH = 720
+WINDOWHEIGHT = 655
 DISPLAYSURF = pygame.display.set_mode((WINDOWWIDTH,WINDOWHEIGHT))
 pygame.display.set_caption('Paper Soccer')
 
@@ -51,18 +53,17 @@ global BALL
 global first_move
 frame_count = 0
 
-
 clock = pygame.time.Clock()
 
 frame_rate = 60
 start_ticks = 15
 font = pygame.font.Font('freesansbold.ttf', 32) 
+font_player = pygame.font.Font('freesansbold.ttf', 16) 
 POINTS_pos = []
 LINES = []
 PLAYERS = []
-
+active_player=None
 DISPLAYSURF.fill(WHITE)
-
 point_for_skip = [(1,1),(1,2),(1,3),(1,7),(1,8),(1,9),
                 (boardheight+1,1),(boardheight+1,2),(boardheight+1,3),
                 (boardheight+1,7),(boardheight+1,8),(boardheight+1,9)]
@@ -102,11 +103,6 @@ def draw_line_in_court(list_):
             line = (start,end)
             pygame.draw.line(DISPLAYSURF,BLACK,line[0],line[1],3)
             LINES.append(line)
-
-def draw_goal_points(z,i,list_):
-    for point in enumerate(POINTS_pos):
-        if (z,i) in list_:
-            point.goalpoint = True 
     
 def draw_points():
     goal_points_idx = [(1,4),(1,5),(1,6),(12,4),(12,5),(12,6)]
@@ -125,11 +121,12 @@ def draw_points():
             x = (size*i,size*z)
             
             if (z,i) in goal_points_idx:
-                POINTS_pos.append(Points(cords=x,point_pos=point_p,pointradius=point_radius,goalpoint=True)) 
-                
+                if goal_points_idx.index((z,i)) in [0,1,2]:
+                    POINTS_pos.append(Points(cords=x,point_pos=point_p,pointradius=point_radius,p1_goal=True))
+                else:
+                    POINTS_pos.append(Points(cords=x,point_pos=point_p,pointradius=point_radius,p2_goal=True))
             else:
-                POINTS_pos.append(Points(cords=x,point_pos=point_p,pointradius=point_radius)) 
-              
+                POINTS_pos.append(Points(cords=x,point_pos=point_p,pointradius=point_radius))            
             cnt+=1
         cnt -= 1
     pygame.draw.rect(DISPLAYSURF,BLACK,[size,size,boardwidth*size,boardheight*size],1)
@@ -188,14 +185,14 @@ def change_turn():
         print('Tura dla: ', player2.name)
 
 def clear_lines(LINES):
-    for line in LINES:
-        pygame.draw.line(DISPLAYSURF,WHITE,line[0],line[1],4)
+    DISPLAYSURF.fill(WHITE)
 
 def pick_another_point(point_x):
     global frame_count
+    global active_player
     neigh = find_near_points(point_x)
     mouse_cords = (mouse_x,mouse_y)
-    active_player=None
+    
     for obj in neigh:
         if obj.point_radius.collidepoint(mouse_cords):
             obj.checked = True
@@ -217,8 +214,12 @@ def pick_another_point(point_x):
                         active_player = x               
                 pygame.draw.line(DISPLAYSURF,active_player.color,line[0],line[1],3)
                 
-                if obj.goalpoint == True:
-                    print('GAME ENDED: PLAYER: ',active_player.name + ' WON!')
+                if obj.p1_goal == True:
+                    print('GAME ENDED: PLAYER: ',player2.name + ' WON!')
+                    clear_lines(LINES)
+                    POINTS_pos.clear()
+                if obj.p2_goal == True:
+                    print('GAME ENDED: PLAYER: ',player1.name + ' WON!')
                     clear_lines(LINES)
                     POINTS_pos.clear()
                     
@@ -250,7 +251,14 @@ while True:
         player2 = Player('Robert',BLUE)
         PLAYERS.append(player1)
         PLAYERS.append(player2)
+        player1_name = player1.name
+        player2_name = player2.name
+
+        player1_points = "Points: {0}".format(player1.points)
+        player2_points = "Points: {0}".format(player2.points)
+
         player1.turn = True
+        frame_count=0
         LINES = []
         BALL = (250,300) #Startowa pozycja
         draw_points() #Rozrysuj punkty i in radius aby były łatwiejsze do wybierania 
@@ -266,18 +274,32 @@ while True:
     minutes = total_seconds // 60
     seconds = total_seconds % 60
     output_string = "Time: {0:02}".format(seconds)
-    text = font.render(output_string, True, BLACK,WHITE)
-    DISPLAYSURF.blit(text, [180, 15])
+    for x in PLAYERS:
+        if x.turn == True:
+            active_player_string ="Turn for: {0}".format(x.name)
+    
+    
 
+    active_player_text = font_player.render(active_player_string, True, BLACK) 
+    text = font.render(output_string, True, BLACK)
+    player1_name_text = font_player.render(player1_name,True,BLACK)
+    player2_name_text = font_player.render(player2_name,True,BLACK)
+    player1_points_text = font_player.render(player1_points,True,BLACK)
+    player2_points_text = font_player.render(player2_points,True,BLACK)
+
+    pygame.draw.rect(DISPLAYSURF,WHITE,(460,0,300,640)) #WHITE BOX FOR REFRESH TEXT DRAWING
+    pygame.draw.rect(DISPLAYSURF,GREEN,(0,0,720,45))
+    pygame.draw.rect(DISPLAYSURF,GREEN,(0,610,720,45))
+
+    DISPLAYSURF.blit(text, [540, 70])
+    DISPLAYSURF.blit(active_player_text,[540,110])
+    DISPLAYSURF.blit(player1_name_text, [20, 20])
+    DISPLAYSURF.blit(player1_points_text, [90, 20])
+    DISPLAYSURF.blit(player2_name_text, [20, 630])
+    DISPLAYSURF.blit(player2_points_text, [90, 630])
+    
     frame_count += 1
     clock.tick(frame_rate)
-    pygame.display.flip()
-    #if int(seconds) >= 15:
-            #seconds=seconds - 15
-    #actual_second = "{:.0f}".format(seconds)
-    #text = font.render(actual_second,True,BLUE,WHITE)
-    #DISPLAYSURF.blit(text,(60,55))
-
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             pygame.quit()
@@ -288,5 +310,5 @@ while True:
             current_point = pick_another_point(current_point)
             
         elif event.type == KEYDOWN:
-            pass
+            print(mouse_x,mouse_y)
     pygame.display.update()
