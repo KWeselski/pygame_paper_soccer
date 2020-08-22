@@ -2,6 +2,7 @@ import pygame, sys
 from pygame.locals import *
 import threading
 import time
+
 class Points():
 
     def draw_point(self,cords,color):
@@ -24,8 +25,6 @@ class Player():
         self.color = color
         self.turn = turn
     
-
-
 pygame.init()
 
 WINDOWWIDTH = 480
@@ -39,8 +38,6 @@ BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 GREEN = (0, 255, 0)
 
-
-
 size = 50
 boardwidth = 8
 boardheight = 11
@@ -52,8 +49,14 @@ global current_point
 global isClicked
 global BALL
 global first_move
+frame_count = 0
 
 
+clock = pygame.time.Clock()
+
+frame_rate = 60
+start_ticks = 15
+font = pygame.font.Font('freesansbold.ttf', 32) 
 POINTS_pos = []
 LINES = []
 PLAYERS = []
@@ -63,7 +66,6 @@ DISPLAYSURF.fill(WHITE)
 point_for_skip = [(1,1),(1,2),(1,3),(1,7),(1,8),(1,9),
                 (boardheight+1,1),(boardheight+1,2),(boardheight+1,3),
                 (boardheight+1,7),(boardheight+1,8),(boardheight+1,9)]
-
 
 def draw_court(Points_list):
     left_side_idx = [x for x in range(0,10)]
@@ -75,8 +77,7 @@ def draw_court(Points_list):
     draw_line_in_court(right_side_idx)
     draw_line_unsorted_in_court(up_side_idx)
     draw_line_unsorted_in_court(down_side_idx)
-    
-    
+      
 def draw_line_unsorted_in_court(list_):
     points_in = []
     for x in list_:
@@ -107,8 +108,6 @@ def draw_goal_points(z,i,list_):
         if (z,i) in list_:
             point.goalpoint = True 
     
-    
-
 def draw_points():
     goal_points_idx = [(1,4),(1,5),(1,6),(12,4),(12,5),(12,6)]
     cnt = 0
@@ -134,8 +133,6 @@ def draw_points():
             cnt+=1
         cnt -= 1
     pygame.draw.rect(DISPLAYSURF,BLACK,[size,size,boardwidth*size,boardheight*size],1)
-
-
 
 def clear_display(points_):
     for obj in points_:
@@ -173,7 +170,14 @@ def find_near_points(point_p):
     
     return near_n
 
+def countdown(seconds):    
+    if int(seconds) > 15:
+            seconds=-1
+            return seconds       
+    print("Seconds: {:.0f}".format(seconds))            
+
 def change_turn():
+    
     if player1.turn == False:
         player2.turn=False
         player1.turn=True
@@ -188,6 +192,7 @@ def clear_lines(LINES):
         pygame.draw.line(DISPLAYSURF,WHITE,line[0],line[1],4)
 
 def pick_another_point(point_x):
+    global frame_count
     neigh = find_near_points(point_x)
     mouse_cords = (mouse_x,mouse_y)
     active_player=None
@@ -224,6 +229,7 @@ def pick_another_point(point_x):
                         clear_display(POINTS_pos)          
                         find_near_points(current_point.point_pos)
                         change_turn()
+                        frame_count=0
                         return current_point.point_pos
     current_point = point_x
     return current_point
@@ -251,8 +257,26 @@ while True:
         draw_court(POINTS_pos)      
         current_point = check_position(BALL,POINTS_pos)
         pick_another_point(current_point)
+        
+    total_seconds = start_ticks - (frame_count // frame_rate)
+    if total_seconds == 0:
+        change_turn()
+        frame_count=0
 
+    minutes = total_seconds // 60
+    seconds = total_seconds % 60
+    output_string = "Time: {0:02}".format(seconds)
+    text = font.render(output_string, True, BLACK,WHITE)
+    DISPLAYSURF.blit(text, [180, 15])
 
+    frame_count += 1
+    clock.tick(frame_rate)
+    pygame.display.flip()
+    #if int(seconds) >= 15:
+            #seconds=seconds - 15
+    #actual_second = "{:.0f}".format(seconds)
+    #text = font.render(actual_second,True,BLUE,WHITE)
+    #DISPLAYSURF.blit(text,(60,55))
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -264,6 +288,5 @@ while True:
             current_point = pick_another_point(current_point)
             
         elif event.type == KEYDOWN:
-            check_index()
-       
+            pass
     pygame.display.update()
