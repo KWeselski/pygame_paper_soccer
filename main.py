@@ -2,6 +2,7 @@ import pygame, sys
 from pygame.locals import *
 import threading
 import time
+import random
 
 class Points():
 
@@ -26,7 +27,9 @@ class Player():
         self.color = color
         self.turn = turn
         self.points = points
-    
+
+
+
 pygame.init()
 
 WINDOWWIDTH = 720
@@ -202,12 +205,23 @@ def check_goal(obj):
 def removeDuplicates(lst):       
     return [t for t in (set(tuple(i) for i in lst))] 
 
-def pick_another_point(point_x):
+
+def bot_move(current_point):
+    current_point = pick_another_point(current_point,True)
+    return current_point
+
+def pick_another_point(point_x , bot=False):
     global frame_count
     global active_player
     global unactive_player
     neigh = find_near_points(point_x)
-    mouse_cords = (mouse_x,mouse_y)
+    if bot is True:
+        neigh_choice = random.choice(neigh)
+        mouse_cords = neigh_choice.cords
+        print('Neightbour ',mouse_cords)
+    else:
+        mouse_cords = (mouse_x,mouse_y)
+        print('Mouse cords ', mouse_cords)
 
     for obj in neigh:
         if obj.point_radius.collidepoint(mouse_cords):
@@ -221,6 +235,10 @@ def pick_another_point(point_x):
                 
             if (line[0],line[1]) in LINES or (line[1],line[0]) in LINES:
                 print('Ta linia juz istnieje')
+            
+            if (line[0],line[1]) in LINES or (line[1],line[0]) in LINES and bot==True:
+                print('Bot utworzył ta sama linie')
+
             else:
                 for x in PLAYERS:
                     if x.turn == True:
@@ -282,7 +300,7 @@ while True:
         draw_points() #Rozrysuj punkty i in radius aby były łatwiejsze do wybierania 
         draw_court(POINTS_pos)      
         current_point = check_position(BALL,POINTS_pos)
-        pick_another_point(current_point)
+        pick_another_point(current_point,False)
         LINES = removeDuplicates(LINES)
         
     total_seconds = start_ticks - (frame_count // frame_rate)
@@ -297,7 +315,9 @@ while True:
         if x.turn == True:
             active_player_string ="Turn for: {0}".format(x.name)
     
-    
+    if player2.turn == True:
+        time.sleep(1)
+        current_point = bot_move(current_point)
 
     active_player_text = font_player.render(active_player_string, True, BLACK) 
     text = font.render(output_string, True, BLACK)
@@ -326,7 +346,7 @@ while True:
         elif event.type == MOUSEMOTION:
             mouse_x, mouse_y = event.pos 
         elif event.type == MOUSEBUTTONUP:  
-            current_point = pick_another_point(current_point)
+            current_point = pick_another_point(current_point,False)
             
         elif event.type == KEYDOWN:
             print(mouse_x,mouse_y)
