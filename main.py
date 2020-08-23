@@ -3,7 +3,8 @@ from pygame.locals import *
 import threading
 import time
 import random
-
+import collections
+import sys
 class Points():
 
     def draw_point(self,cords,color):
@@ -52,7 +53,7 @@ boardheight = 11
 mouse_x = 0
 mouse_y = 0
 
-global current_point
+
 global isClicked
 global BALL
 global first_move
@@ -168,11 +169,9 @@ def find_near_points(point_p):
             cords_near = (obj.point_pos.centerx, obj.point_pos.centery)
          
             if n == cords_near:
-                near_n.append(obj) 
-    
+                near_n.append(obj)  
     for obj in near_n:
-        obj.draw_point((obj.point_pos.centerx, obj.point_pos.centery),BLACK)
-    
+        obj.draw_point((obj.point_pos.centerx, obj.point_pos.centery),BLACK)    
     return near_n          
 
 def change_turn():
@@ -184,8 +183,6 @@ def change_turn():
     else:
         player1.turn=False
         player2.turn=True
-        print('Tura dla: ', player2.name)
-
 def clear_lines(LINES):
     DISPLAYSURF.fill(WHITE)
 
@@ -206,23 +203,73 @@ def removeDuplicates(lst):
     return [t for t in (set(tuple(i) for i in lst))] 
 
 
+"""def find_shortest_path(graph,start,end,path=[]):
+
+    path = path + [start]
+    
+    #path = removeDuplicates(path)
+    if start == end:
+        print("Znaleziono")
+        return path 
+    if not start in graph:
+        None
+    for node in graph[start]:
+        if node.cords not in path:
+            pygame.draw.line(DISPLAYSURF,GREEN,start,node.cords)
+            newpath = find_shortest_path(graph, (node.point_pos.centerx,node.point_pos.centery), end, path)         
+            if newpath: return newpath
+    return None
+    
+    #dist = {start: [start]}
+    #q = collections.deque(start)
+    #print(q)
+    #while len(q):
+    #    at = q.popleft()
+    #    print(at)
+    #    for next in graph[at]:
+    #        if next not in dist:
+    #            dist[next] = [dist[at], next]
+    #            q.append(next)
+    #return dist.get(end)
+    path = path + [start]
+    if start == end:
+        return path
+    if not start in graph:  
+        return None
+    shortest = None
+    for node in graph[start]:    
+        if node.cords not in path:            
+            newpath = find_shortest_path(graph,(node.point_pos.centerx,node.point_pos.centery),end,path)
+            if newpath:
+                if not shortest or len(newpath) < len(shortest):
+                    shortest = newpath
+    return shortest"""
+
+def make_graph():
+    graph = {}
+    for point in POINTS_pos:
+        near = find_near_points(point.point_pos)
+        graph[point.cords] = near
+    return graph
+    
+
 def bot_move(current_point):
     current_point = pick_another_point(current_point,True)
     return current_point
+    print('bocik')
 
 def pick_another_point(point_x , bot=False):
+    global current_point
     global frame_count
     global active_player
     global unactive_player
+    print("POINT_X",(point_x.centerx,point_x.centery))
     neigh = find_near_points(point_x)
     if bot is True:
         neigh_choice = random.choice(neigh)
-        mouse_cords = neigh_choice.cords
-        print('Neightbour ',mouse_cords)
+        mouse_cords = neigh_choice.cords       
     else:
         mouse_cords = (mouse_x,mouse_y)
-        print('Mouse cords ', mouse_cords)
-
     for obj in neigh:
         if obj.point_radius.collidepoint(mouse_cords):
             obj.checked = True       
@@ -249,37 +296,52 @@ def pick_another_point(point_x , bot=False):
                 
                 check_goal(obj)
                 possible_lines = []
-                LINES.append(line)          
+                LINES.append(line)
+
+
                 for x in POINTS_pos:
                     if x.cords == end_point:
-                        current_point = x             
+                        print('ENDPOINT', end_point)
+                        current_point = x 
+                                  
                         clear_display(POINTS_pos)          
                         near = find_near_points(current_point.point_pos)                  
                         for elem in near:
                             possible_lines.append((current_point.cords,elem.cords))
                             possible_lines.append((elem.cords,current_point.cords))
-                            
-                        act_lines = []       
+
+                        possibles_lines_test = possible_lines
+                        last_line = LINES[-1:][0]
+                        
+                        possibles_lines_test.remove((last_line[0],last_line[1]))
+                        possibles_lines_test.remove((last_line[1],last_line[0]))
+                        
+                        actual_lines = [] 
                         for ps_line in possible_lines:
-                            for line in LINES:
-                                if ps_line == line:
-                                    act_lines.append(ps_line)                                    
-                                    if len(act_lines) == len(near):
+                            for line_ in LINES:
+                                
+                                if ps_line == line_:
+                                    actual_lines.append(ps_line)                                    
+                                    if len(actual_lines) == len(near):
                                         print('Nie ma więcej ruchów')
                                         for player in PLAYERS:
                                             if player.turn != True:
+                                                time.sleep(5)
                                                 player.points += 1
                                                 clear_lines(LINES)                                           
                                                 POINTS_pos.clear()
-
-                        change_turn()
-                        frame_count=0
-                        return current_point.point_pos
+                        if any(elem in LINES for elem in possibles_lines_test):
+                            current_point = pick_another_point(current_point.point_pos,bot=False) 
+                            return current_point                         
+                        else:
+                            change_turn()
+                            frame_count=0
+                            return current_point.point_pos
     current_point = point_x
     return current_point
 
 while True:
-
+    
     if not POINTS_pos:
         if not PLAYERS:
             player1 = Player('Jacek',RED)
@@ -316,8 +378,8 @@ while True:
             active_player_string ="Turn for: {0}".format(x.name)
     
     if player2.turn == True:
-        time.sleep(1)
-        current_point = bot_move(current_point)
+        pass
+        #current_point = bot_move(current_point)
 
     active_player_text = font_player.render(active_player_string, True, BLACK) 
     text = font.render(output_string, True, BLACK)
@@ -349,5 +411,11 @@ while True:
             current_point = pick_another_point(current_point,False)
             
         elif event.type == KEYDOWN:
-            print(mouse_x,mouse_y)
+            pass
+           
+            
+        elif event.type == KEYUP:
+            pass  
+            
+
     pygame.display.update()
