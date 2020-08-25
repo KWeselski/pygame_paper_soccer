@@ -5,6 +5,7 @@ import time
 import random
 import collections
 import sys
+import numpy as np
 
 class Points():
     """
@@ -34,8 +35,21 @@ class Player():
         self.turn = turn
         self.points = points
 
+class Node():
 
+    def __init__(self,parent=None, position=None):
+        self.parent = parent
+        self.position = position
 
+        self.g = 0
+        self.h = 0
+        self.f = 0
+    
+    def __eq__(self, other):
+        return self.position == other.position
+
+    def __repr__(self):
+        return str((self.position))
 pygame.init()
 
 WINDOWWIDTH = 720 
@@ -76,13 +90,15 @@ POINTS_pos = [] #ALL POINTS ON BOARD
 LINES = [] #ALL ACTIVE LINE ON BOARD
 liny =[] 
 PLAYERS = [] #PLAYERS
-
+Squares = []
+point_pos_cords = []
 #ACTIVE STATEMENTS
 active_player=None
 unactive_player=None
 possible_moves = True
 someone_won = False
 
+previous_position = (0,0)
 
 DISPLAYSURF.fill(FOREST)
 
@@ -103,8 +119,8 @@ def draw_court(Points_list):
     draw_line_in_court(left_side_idx)
     draw_line_in_court(right_side_idx)
     draw_line_unsorted_in_court(up_side_idx)
-    draw_line_unsorted_in_court(down_side_idx)
-      
+    draw_line_unsorted_in_court(down_side_idx)   
+
 def draw_line_unsorted_in_court(list_):
     """
     The function draws lines between points.
@@ -116,19 +132,20 @@ def draw_line_unsorted_in_court(list_):
         for idx,point in enumerate(POINTS_pos):
             if x == idx:
                 points_in.append(point)
+                
         for x in range(0,len(points_in)-1):
             start = (points_in[x].point_pos.centerx,points_in[x].point_pos.centery) #Start point
             end = (points_in[x+1].point_pos.centerx,points_in[x+1].point_pos.centery) #End point
             line = (start,end) #ex line ((150,200),(250,300))
             pygame.draw.line(DISPLAYSURF,BLACK,line[0],line[1],3) #Draw line beetween points
             LINES.append(line) #Add line to existing lines
-           
-
+            
 def draw_line_in_court(list_):
     """
     The function draws lines between points.
     The points are found after the indices in the received list.
     """
+
     points_in = []
     for idx,point in enumerate(POINTS_pos):
         if idx in list_:
@@ -139,8 +156,7 @@ def draw_line_in_court(list_):
             line = (start,end)
             pygame.draw.line(DISPLAYSURF,BLACK,line[0],line[1],3)
             LINES.append(line)
-            
-    
+              
 def draw_points():
     """
     The function draw all points and their radius for better find on board.
@@ -168,7 +184,78 @@ def draw_points():
                 POINTS_pos.append(Points(cords=x,point_pos=point_p,pointradius=point_radius))            
             cnt+=1
         cnt -= 1
-    
+
+def get_all_lines():
+    all_lines = []
+    for x in POINTS_pos:
+        current_point = x                                
+                        #clear_display(POINTS_pos)          
+        near = find_near_points(current_point.point_pos)                  
+        for elem in near:
+            all_lines.append((current_point.cords,elem.cords))
+            all_lines.append((elem.cords,current_point.cords))  
+    all_lines = removeDuplicates(all_lines)
+    all_lines = list(set(all_lines)- set(LINES))
+    return all_lines
+
+def A_star_alg(lines, start_point, end_point):
+
+    start_node = Node(None,start_point)
+    start_node.g = start_node.h = start_node.f = 0
+    end_node = Node(None,end_point)
+    end_node.g = end_node.h = end_node.f = 0
+    all_lines_ = get_all_lines()  
+    open_list = []
+    closed_list = []
+
+    open_list.append(start_node)
+
+    while len(open_list) > 0:
+
+        current_node = open_list[0]
+        current_index = 0
+        for index, item in enumerate(open_list):
+            if item.f < current_node.f:
+                current_node = item
+                current_index = index
+
+        open_list.pop(current_index)
+        closed_list.append(current_node)
+
+        if current_node == end_node:
+            path = []
+            current = current_node
+            while current is not None:
+                path.append(current.position)
+                current = current.parent
+            return path[::-1]
+
+        children = []
+        for new_position in [(-50,-50),(-50,0),(-50,50),(-50,0),(0,50),(50,-50),(50,0),(50,50)]:           
+            node_position = (current_node.position[0] + new_position[0],current_node.position[1]+new_position[1])
+              
+            new_node = Node(current_node, node_position)
+            tuple_new_node = (current_node.position,node_position)
+  
+            if (tuple_new_node[0],tuple_new_node[1]) and (tuple_new_node[1],tuple_new_node[0]) not in all_lines_:       
+                print('Linia jest juz utworzona', tuple_new_node)
+                continue            
+            children.append(new_node)
+
+        for child in children:        
+
+            for closed_child in closed_list:
+                if child == closed_child:
+                    continue
+            child.g = current_node.g + 1
+            child.h = ((child.position[0] - end_node.position[0]) ** 2) + ((child.position[1] - end_node.position[1]) ** 2)
+            child.f = child.g + child.h
+
+            for open_node in open_list:
+                if child == open_node and child.g > open_node.g:
+                    continue
+
+            open_list.append(child)
 
 def clear_display(points_):
     """
@@ -197,9 +284,10 @@ def check_index():
     for idx,obj in enumerate(POINTS_pos):
         if obj.point_radius.collidepoint(mouse_cords):
             print(idx)
+            print(obj.cords)
 
 def find_near_points(point_p):
-    
+
     cords = (point_p.centerx,point_p.centery)
     near_points = [(cords[0]-size,cords[1]+size),(cords[0],cords[1]+size),(cords[0]+size,cords[1]+size),
                     (cords[0]-size,cords[1]),(cords[0]+size,cords[1]),
@@ -212,10 +300,7 @@ def find_near_points(point_p):
             if n == cords_near:
                 near_n.append(obj)  
     for obj in near_n:
-        if player1.turn == True:
-            obj.draw_point((obj.point_pos.centerx, obj.point_pos.centery),RED)   
-        else:
-            obj.draw_point((obj.point_pos.centerx, obj.point_pos.centery),BLUE)  
+        obj.draw_point((obj.point_pos.centerx, obj.point_pos.centery),BLACK)  
     return near_n          
 
 def change_turn():
@@ -226,6 +311,7 @@ def change_turn():
     else:
         player1.turn=False
         player2.turn=True
+
 def clear_lines(LINES):
     DISPLAYSURF.fill(FOREST)
 
@@ -246,9 +332,49 @@ def removeDuplicates(lst):
 def bot_move(current_point):
     current_point = pick_another_point(current_point,True)
     return current_point
-    
 
-def pick_another_point(point_x , bot=False):
+def name_moves(list_moves):
+    dict_moves = {}
+    for idx,x in enumerate(list_moves):
+        if x == (-50,50):  
+            dict_moves['7'] = x
+        if x == (0,50):
+            dict_moves['8'] = x
+        if x == (50,50):
+            dict_moves['9'] = x
+        if x == (-50,0):
+            dict_moves['4'] = x
+        if x == (50,0):
+            dict_moves['6'] = x
+        if x == (-50,-50):
+            dict_moves['1'] = x
+        if x == (0,-50):
+            dict_moves['2'] = x
+        if x == (50,-50):
+            dict_moves['3'] = x
+    return dict_moves
+
+def print_board():
+    global Squares
+    square_z = np.zeros((2,2))
+    #goal_points_idx = [(1,4),(1,5),(1,6),(12,4),(12,5),(12,6)] #Points in gates
+    cnt = 0
+    for i in range(1,boardwidth+2):
+        for z in range(1,boardheight+2):
+            if (z,i) in point_for_skip:
+                continue
+            if cnt%2 == 0:
+                Squares.append(square_z)                 
+            else:
+                Squares.append(square_z)       
+            cnt+=1
+        cnt -= 1
+    return Squares
+
+def minimax(board,depth,maximizingPlayer):
+    pass
+
+def pick_another_point(point_x , bot=False,key=None):
     global current_point
     global frame_count
     global active_player
@@ -256,11 +382,35 @@ def pick_another_point(point_x , bot=False):
     global possible_moves
     
     neigh = find_near_points(point_x)
+    
+    pos_moves = []
+    for x in neigh:
+            tuple_current = (point_x.centerx,point_x.centery)
+            r = tuple(map(lambda i,j: i - j,x.cords ,tuple_current))
+            pos_moves.append(r)
+    pos_moves = name_moves(pos_moves) 
+
     if bot is True:
-        neigh_choice = random.choice(neigh)
-        mouse_cords = neigh_choice.cords       
+        global previous_position
+        end = (250,50)     
+        
+        start_pos = (point_x.centerx,point_x.centery)
+        print(start_pos) 
+        
+        path = A_star_alg(POINTS_pos, start_pos, end)
+        print('Sciezka',path)
+        #choice = path[0 
+        #mouse_cords = tuple(map(lambda i,j: i + j,(point_x.centerx,point_x.centery) ,pos_moves[choice]))
+        mouse_cords = path[1]
+        path = path[1:]
+        previous_position = start_pos
+        print("Bot wykonał ruch: ",mouse_cords)       
     else:
         mouse_cords = (mouse_x,mouse_y)
+    if key is not None:   
+        
+        mouse_cords = tuple(map(lambda i,j: i + j,(point_x.centerx,point_x.centery) ,pos_moves[k]))
+        print(mouse_cords)
     for obj in neigh:
         if obj.point_radius.collidepoint(mouse_cords):
             obj.checked = True       
@@ -294,7 +444,7 @@ def pick_another_point(point_x , bot=False):
                 for x in POINTS_pos:
                     if x.cords == end_point:                
                         current_point = x                                
-                        #clear_display(POINTS_pos)          
+                        clear_display(POINTS_pos)          
                         near = find_near_points(current_point.point_pos)                  
                         for elem in near:
                             possible_lines.append((current_point.cords,elem.cords))
@@ -348,11 +498,15 @@ while True:
         player1.turn = True
         frame_count=0
         LINES = []
+
+        point_pos_cords.clear()
         BALL = (250,300) #Startowa pozycja
         draw_points() #Rozrysuj punkty i in radius aby były łatwiejsze do wybierania 
         draw_court(POINTS_pos)      
         current_point = check_position(BALL,POINTS_pos)
-
+        
+        for x in POINTS_pos:
+            point_pos_cords.append(x.cords) 
         pick_another_point(current_point,False)
         LINES = removeDuplicates(LINES)
         
@@ -414,8 +568,34 @@ while True:
         elif event.type == MOUSEBUTTONUP:  
             current_point = pick_another_point(current_point,False)
             
+        # NUMPAD    
         elif event.type == KEYDOWN:
-            pass
+            if event.key == K_KP1:
+                k='7'
+                current_point = pick_another_point(current_point,False,k)
+            if event.key == K_KP2:
+                k='8'
+                current_point = pick_another_point(current_point,False,k)
+            if event.key == K_KP3:
+                k='9'
+                current_point = pick_another_point(current_point,False,k)
+            if event.key == K_KP4:
+                k='4'
+                current_point = pick_another_point(current_point,False,k)
+            if event.key == K_KP5:
+                get_all_lines()
+            if event.key == K_KP6:
+                k='6'
+                current_point = pick_another_point(current_point,False,k)
+            if event.key == K_KP7:
+                k='1'
+                current_point = pick_another_point(current_point,False,k)
+            if event.key == K_KP8:
+                k='2'
+                current_point = pick_another_point(current_point,False,k)
+            if event.key == K_KP9:
+                k='3'
+                current_point = pick_another_point(current_point,False,k)
            
             
         elif event.type == KEYUP:
