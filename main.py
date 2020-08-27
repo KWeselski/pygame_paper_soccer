@@ -6,54 +6,10 @@ import random
 import collections
 import sys
 import numpy as np
+from player import Player
+from points import Points, Node
 
-class Points():
-    """
-    Points objects on which the player moves
-    """
-    def draw_point(self,cords,color,size):
-        point = pygame.draw.circle(DISPLAYSURF,color,(cords[0],cords[1]),size)
 
-    def __init__(self,cords=(0,0),checked=False,point_pos=pygame.Rect,pointradius=pygame.Rect,p1_goal=False,p2_goal=False):
-        self.cords = cords
-        self.checked = checked
-        self.point_pos = point_pos
-        self.point_radius = pointradius
-        self.p1_goal=p1_goal
-        self.p2_goal=p2_goal
-
-    def __repr__(self):
-        return(str(self.cords))
-
-class Player():
-    """
-    
-    """
-    def __init__(self,name,color,points=0,turn=False):    
-        self.name = name
-        self.color = color
-        self.turn = turn
-        self.points = points
-
-class Node():
-
-    def __init__(self,parent=None, position=None):
-        self.parent = parent
-        self.position = position
-
-        self.g = 0
-        self.h = 0
-        self.f = 0
-    
-    def __eq__(self, other):
-        return self.position == other.position
-
-    def __repr__(self):
-        return str((self.position))
-    
-    def __hash__(self):              
-        return hash(self.position)
-    
 pygame.init()
 
 WINDOWWIDTH = 720 
@@ -89,20 +45,18 @@ start_ticks = 20
 #FONTS
 font = pygame.font.Font('freesansbold.ttf', 32) 
 font_player = pygame.font.Font('freesansbold.ttf', 16) 
+font_button = pygame.font.Font('freesansbold.ttf', 24) 
 
 POINTS_pos = [] #ALL POINTS ON BOARD
 LINES = [] #ALL ACTIVE LINE ON BOARD
-liny =[] 
+
 PLAYERS = [] #PLAYERS
-Squares = []
 point_pos_cords = []
 #ACTIVE STATEMENTS
 active_player=None
 unactive_player=None
 possible_moves = True
 someone_won = False
-
-previous_position = (0,0)
 
 DISPLAYSURF.fill(FOREST)
 
@@ -249,8 +203,8 @@ def A_star_alg(lines, start_point, end_point):
 
             new_node = Node(current_node, node_position)      
             children.append(new_node)
-            #pygame.draw.circle(DISPLAYSURF,GREEN,(new_node.position[0],new_node.position[1]),6)
-            #time.sleep(0.1)
+            
+            
             pygame.display.flip()      
         #print("Ilosc mozliwych ruchow",len(children))
         #print("Mozliwe punkty dla danej galezi",children)
@@ -275,7 +229,7 @@ def refresh_display(points_):
     """
     for obj in points_:
         #obj.draw_point(obj.cords,FOREST,6) 
-        obj.draw_point(obj.cords,WHITE,4)
+        obj.draw_point(DISPLAYSURF,obj.cords,WHITE,4)
         
 def check_position(ball_, points_):
     """
@@ -313,10 +267,8 @@ def find_near_points(point_p):
             if n == cords_near:
                 near_n.append(obj)  
     for obj in near_n:
-        obj.draw_point((obj.point_pos.centerx, obj.point_pos.centery),BLACK,4)  
+        obj.draw_point(DISPLAYSURF,(obj.point_pos.centerx, obj.point_pos.centery),BLACK,4)  
     return near_n          
-
-
 
 def clear_lines(LINES):
     DISPLAYSURF.fill(FOREST)
@@ -353,21 +305,21 @@ def bot_move(current_point):
 def name_moves(list_moves):
     dict_moves = {}
     for x in list_moves:
-        if x is (-50,50):  
+        if x == (-50,50):  
             dict_moves['7'] = x
-        if x is (0,50):
+        if x == (0,50):
             dict_moves['8'] = x
-        if x is (50,50):
+        if x == (50,50):
             dict_moves['9'] = x
-        if x is (-50,0):
+        if x == (-50,0):
             dict_moves['4'] = x
-        if x is (50,0):
+        if x == (50,0):
             dict_moves['6'] = x
-        if x is (-50,-50):
+        if x == (-50,-50):
             dict_moves['1'] = x
-        if x is (0,-50):
+        if x == (0,-50):
             dict_moves['2'] = x
-        if x is (50,-50):
+        if x == (50,-50):
             dict_moves['3'] = x
     return dict_moves
 
@@ -378,7 +330,7 @@ def check_won():
                         change_turn()
                         clear_lines(LINES)
                         POINTS_pos.clear()
-
+                        
 def change_turn():   
         if player1.turn is False:
             player2.turn=False
@@ -403,14 +355,14 @@ def pick_another_point(point_x, bot=False,key=None,mouse_cords_=False):
             move = tuple(map(lambda i,j: i - j,x.cords ,tuple_current))
             pos_moves_numpad.append(move)
     pos_moves_numpad = name_moves(pos_moves_numpad) 
-    if key is not None:       
-        mouse_cords = tuple(map(lambda i,j: i + j,(point_x.centerx,point_x.centery) ,pos_moves_numpad[k]))
-
+    
     #BOT MOVING
     if bot is True:
-        mouse_cords = mouse_cords_     
-    else:
-        mouse_cords = (mouse_x,mouse_y) #
+        mouse_cords = mouse_cords_
+    elif key is not None:       
+        mouse_cords = tuple(map(lambda i,j: i + j,(point_x.centerx,point_x.centery) ,pos_moves_numpad[key]))     
+    elif bot is False and key is None:
+        mouse_cords = (mouse_x,mouse_y)
     
     print(mouse_cords)
     for obj in neigh:
@@ -436,7 +388,7 @@ def pick_another_point(point_x, bot=False,key=None,mouse_cords_=False):
                 
                 check_goal(obj)
                 check_won()
-
+                
                 possible_lines = []
                 possibles_lines_for_next_step = []
                 LINES.append((start_point,end_point))
@@ -468,9 +420,7 @@ def pick_another_point(point_x, bot=False,key=None,mouse_cords_=False):
                                                                                                                            
                         if any(elem in LINES for elem in possibles_lines_for_next_step):
                             if bot is True:                                             
-                                current_point = bot_move(current_point.point_pos) 
-                                
-                                #pick_another_point(current_point.point_pos,bot=True)            
+                                current_point = bot_move(current_point.point_pos)          
                             else:
                                 current_point = pick_another_point(current_point.point_pos)
                             return current_point                         
@@ -489,113 +439,176 @@ def draw_text(text,font,color,surface,x,y):
     surface.blit(textObj, textRect)
 
 
-while True:       
-    if not POINTS_pos:
-        possible_moves=True
-        someone_won=False
+click = False
+ 
+def main_menu():
+    while True:
+        DISPLAYSURF.fill(FOREST)
+        draw_text('PAPER SOCCER', font, WHITE, DISPLAYSURF ,235, 20)
+ 
+        mouse_x, mouse_y = pygame.mouse.get_pos()
 
-        if not PLAYERS:
-            player1 = Player('Jacek',RED)
-            player2 = Player('Robert',BLUE)
-                
-            player1.turn=True
-            PLAYERS.append(player1)
-            PLAYERS.append(player2)
-
-        player1_name = player1.name
-        player2_name = player2.name
-        player1_points = "Points: {0}".format(player1.points)
-        player2_points = "Points: {0}".format(player2.points)
-            
-        frame_count=0
-        LINES = []
-        point_pos_cords.clear()
-        BALL = (250,300) #Startowa pozycja
-        draw_points() #Rozrysuj punkty i in radius aby były łatwiejsze do wybierania 
-        draw_court(POINTS_pos)      
-        current_point = check_position(BALL,POINTS_pos)
-            
-        for x in POINTS_pos:
-            point_pos_cords.append(x.cords) 
-        pick_another_point(current_point,False)
-        LINES = removeDuplicates(LINES)
-            
-        #total_seconds = start_ticks - (frame_count // frame_rate)
-        #if total_seconds == 0:
-        #    change_turn()
-        #    frame_count=0
-    
-        #minutes = total_seconds // 60
-        #seconds = total_seconds % 60
-        #output_string = "Time: {0:02}".format(seconds)
-
-    if player2.turn is True:
-        active_player_string ="Turn for: {0}".format(player2.name)      
-        current_point = bot_move(current_point)
-    else:
-        active_player_string ="Turn for: {0}".format(player1.name)
-
-            
-    if possible_moves is False:
-            
-        for player in PLAYERS:
-            if player.turn is not True:                                    
-                player.points += 1
-                clear_lines(LINES)                                         
-                POINTS_pos.clear()
-    
-    pygame.draw.rect(DISPLAYSURF,WHITE,(460,0,300,640)) #WHITE BOX FOR REFRESH TEXT DRAWING
-    pygame.draw.rect(DISPLAYSURF,LIGHTSLATEGRAY,(0,0,720,45))
-    pygame.draw.rect(DISPLAYSURF,LIGHTSLATEGRAY,(0,610,720,45))
-
-    draw_text(active_player_string,font_player,BLACK,DISPLAYSURF,540,110)
-    draw_text(player1_name,font_player,BLACK,DISPLAYSURF,20,20)
-    draw_text(player2_name,font_player,BLACK,DISPLAYSURF,20,630)
-    draw_text(player1_points,font_player,BLACK,DISPLAYSURF,90,20)
-    draw_text(player2_points,font_player,BLACK,DISPLAYSURF,90,630)
+        button_1player = pygame.Rect(260, 100, 200, 50)
+        button_2players = pygame.Rect(260, 200, 200, 50)      
+        if button_1player.collidepoint((mouse_x, mouse_y)):
+            if click:
+                game_loop()     
+        if button_2players.collidepoint((mouse_x, mouse_y)):
+            if click:
+                game_loop(two_player=True)
+        pygame.draw.rect(DISPLAYSURF, (255, 0, 0), button_1player)
+        draw_text('1 PLAYER',font_button,WHITE,DISPLAYSURF,button_1player.centerx-85,button_1player.centery-10)
+        pygame.draw.rect(DISPLAYSURF, (255, 0, 0), button_2players)
+        draw_text('2 PLAYERS',font_button,WHITE,DISPLAYSURF,button_2players.centerx-85,button_2players.centery-10)
+ 
+        click = False
+        for event in pygame.event.get():
+            if event.type == QUIT:
+                pygame.quit()
+                sys.exit()
+            if event.type == KEYDOWN:
+                if event.key == K_ESCAPE:
+                    pygame.quit()
+                    sys.exit()
+            if event.type == MOUSEBUTTONDOWN:
+                if event.button == 1:
+                    click = True
+ 
+        pygame.display.update()
         
-        #frame_count += 1
-        #clock.tick(frame_rate)
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            pygame.quit()
-            sys.exit()
-        elif event.type == MOUSEMOTION:
-            mouse_x, mouse_y = event.pos 
-        elif event.type == MOUSEBUTTONUP:
-                #refresh_display(POINTS_pos)        
-            print('Jacek start',(current_point.centerx, current_point.centery))
-            current_point = pick_another_point(current_point,False)        
-            # NUMPAD    
-        elif event.type == KEYDOWN:
-            if event.key == K_KP1:
-                k='7'
-                current_point = pick_another_point(current_point,False,k)
-            if event.key == K_KP2:
-                k='8'
-                current_point = pick_another_point(current_point,False,k)
-            if event.key == K_KP3:
-                k='9'
-                current_point = pick_another_point(current_point,False,k)
-            if event.key == K_KP4:
-                k='4'
-                current_point = pick_another_point(current_point,False,k)
-            if event.key == K_KP5:
-                check_index()
-            if event.key == K_KP6:
-                k='6'
-                current_point = pick_another_point(current_point,False,k)
-            if event.key == K_KP7:
-                k='1'
-                current_point = pick_another_point(current_point,False,k)
-            if event.key == K_KP8:
-                k='2'
-                current_point = pick_another_point(current_point,False,k)
-            if event.key == K_KP9:
-                k='3'
-                current_point = pick_another_point(current_point,False,k)      
+ 
+def game_loop(two_player=False):
+    global mouse_x, mouse_y, player1, player2, POINTS_pos, LINES, current_point, someone_won, possible_moves
+
+    running = True
+    while running:       
+        if not POINTS_pos:
+            DISPLAYSURF.fill(FOREST)
+            possible_moves=True
+            someone_won=False
+
+            if not PLAYERS:
+                player1 = Player('Jacek',RED)
+                player2 = Player('Robert',BLUE)
+                    
+                player1.turn=True
+                PLAYERS.append(player1)
+                PLAYERS.append(player2)
+
+            player1_name = player1.name
+            player2_name = player2.name
+            player1_points = "Points: {0}".format(player1.points)
+            player2_points = "Points: {0}".format(player2.points)
                 
-        elif event.type == KEYUP:
-            pass  
+            frame_count=0
+            LINES = []
+            #point_pos_cords.clear()
+            BALL = (250,300) #Startowa pozycja
+            draw_points() #Rozrysuj punkty i in radius aby były łatwiejsze do wybierania 
+            draw_court(POINTS_pos)      
+            current_point = check_position(BALL,POINTS_pos)
                 
-    pygame.display.update()
+            #for x in POINTS_pos:
+                #point_pos_cords.append(x.cords) 
+            pick_another_point(current_point,False)
+            LINES = removeDuplicates(LINES)
+                
+            #total_seconds = start_ticks - (frame_count // frame_rate)
+            #if total_seconds == 0:
+            #    change_turn()
+            #    frame_count=0
+        
+            #minutes = total_seconds // 60
+            #seconds = total_seconds % 60
+            #output_string = "Time: {0:02}".format(seconds)
+
+        if player1.points == 3:
+            POINTS_pos.clear()
+            PLAYERS.clear()      
+            print('Player 1 Won')
+            running=False
+            return running
+        if player2.points == 3:
+            POINTS_pos.clear() 
+            PLAYERS.clear() 
+            print('Player 2 Won') 
+            running=False
+            return running
+
+        if two_player is True:
+            if player2.turn is True:
+                active_player_string ="Turn for: {0}".format(player2.name)
+            else:
+                active_player_string ="Turn for: {0}".format(player1.name)
+        else: 
+            if player2.turn is True:
+                active_player_string ="Turn for: {0}".format(player2.name)      
+                current_point = bot_move(current_point)
+            else:
+                active_player_string ="Turn for: {0}".format(player1.name)
+            
+        if possible_moves is False:
+                
+            for player in PLAYERS:
+                if player.turn is not True:                                    
+                    player.points += 1
+                    clear_lines(LINES)                                         
+                    POINTS_pos.clear()
+        
+        pygame.draw.rect(DISPLAYSURF,WHITE,(460,0,300,640)) #WHITE BOX FOR REFRESH TEXT DRAWING
+        pygame.draw.rect(DISPLAYSURF,LIGHTSLATEGRAY,(0,0,720,45))
+        pygame.draw.rect(DISPLAYSURF,LIGHTSLATEGRAY,(0,610,720,45))
+
+        draw_text(active_player_string,font_player,BLACK,DISPLAYSURF,540,110)
+        draw_text(player1_name,font_player,BLACK,DISPLAYSURF,20,20)
+        draw_text(player2_name,font_player,BLACK,DISPLAYSURF,20,630)
+        draw_text(player1_points,font_player,BLACK,DISPLAYSURF,90,20)
+        draw_text(player2_points,font_player,BLACK,DISPLAYSURF,90,630)
+            
+            #frame_count += 1
+            #clock.tick(frame_rate)
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            elif event.type == MOUSEMOTION:
+                mouse_x, mouse_y = event.pos 
+            elif event.type == MOUSEBUTTONUP:
+                    #refresh_display(POINTS_pos)        
+                print('Jacek start',(current_point.centerx, current_point.centery))
+                current_point = pick_another_point(current_point,False)        
+                # NUMPAD    
+            elif event.type == KEYDOWN:
+                if event.key == K_KP1:
+                    k='7'
+                    current_point = pick_another_point(current_point,False,k)
+                if event.key == K_KP2:
+                    k='8'
+                    current_point = pick_another_point(current_point,False,k)
+                if event.key == K_KP3:
+                    k='9'
+                    current_point = pick_another_point(current_point,False,k)
+                if event.key == K_KP4:
+                    k='4'
+                    current_point = pick_another_point(current_point,False,k)
+                if event.key == K_KP5:
+                    check_index()
+                if event.key == K_KP6:
+                    k='6'
+                    current_point = pick_another_point(current_point,False,k)
+                if event.key == K_KP7:
+                    k='1'
+                    current_point = pick_another_point(current_point,False,k)
+                if event.key == K_KP8:
+                    k='2'
+                    current_point = pick_another_point(current_point,False,k)
+                if event.key == K_KP9:
+                    k='3'
+                    current_point = pick_another_point(current_point,False,k)      
+                    
+            elif event.type == KEYUP:
+                pass  
+                    
+        pygame.display.update()
+
+main_menu()
