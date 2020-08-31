@@ -2,12 +2,14 @@ import pygame, sys
 from pygame.locals import *
 import threading
 import time
+import timeit
 import random
 import collections
 import sys
 import numpy as np
 from player import Player
 from points import Points, Node
+
 
 
 
@@ -55,7 +57,7 @@ PLAYERS = [] #PLAYERS
 point_pos_cords = []
 #ACTIVE STATEMENTS
 active_player=None
-unactive_player=None
+
 possible_moves = True
 possible_moves_minmax = True
 someone_won = False
@@ -66,6 +68,8 @@ DISPLAYSURF.fill(FOREST)
 point_for_skip = [(1,1),(1,2),(1,3),(1,7),(1,8),(1,9),
                 (boardheight+1,1),(boardheight+1,2),(boardheight+1,3),
                 (boardheight+1,7),(boardheight+1,8),(boardheight+1,9)]
+
+steps = 0
             
 def draw_court(Points_list):
     """
@@ -85,6 +89,14 @@ def draw_court(Points_list):
     draw_line_unsorted_in_court([29,41])
     draw_line_unsorted_in_court([75,65])
 
+def add_line_to_court(points_in, x):
+    start = (points_in[x].point_pos.centerx,points_in[x].point_pos.centery)
+    end = (points_in[x+1].point_pos.centerx,points_in[x+1].point_pos.centery)
+    line = (start,end)
+    pygame.draw.line(DISPLAYSURF,BLACK,line[0],line[1],3)
+    LINES.append(line)
+    LINES.append((line[1],line[0])) 
+
 def draw_line_unsorted_in_court(list_):
     """
     The function draws lines between points.
@@ -95,16 +107,10 @@ def draw_line_unsorted_in_court(list_):
     for x in list_:
         for idx,point in enumerate(POINTS_pos):
             if x == idx:
-                points_in.append(point)
-                
+                points_in.append(point)      
         for x in range(0,len(points_in)-1):
-            start = (points_in[x].point_pos.centerx,points_in[x].point_pos.centery) #Start point
-            end = (points_in[x+1].point_pos.centerx,points_in[x+1].point_pos.centery) #End point
-            line = (start,end) #ex line ((150,200),(250,300))
-            pygame.draw.line(DISPLAYSURF,BLACK,line[0],line[1],3) #Draw line beetween points
-            LINES.append(line)
-            LINES.append((line[1],line[0])) #Add line to existing lines
-            
+            add_line_to_court(points_in,x)
+
 def draw_line_in_court(list_):
     """
     The function draws lines between points.
@@ -115,13 +121,8 @@ def draw_line_in_court(list_):
         if idx in list_:
             points_in.append(point)
         for x in range(0,len(points_in)-1):
-            start = (points_in[x].point_pos.centerx,points_in[x].point_pos.centery)
-            end = (points_in[x+1].point_pos.centerx,points_in[x+1].point_pos.centery)
-            line = (start,end)
-            pygame.draw.line(DISPLAYSURF,BLACK,line[0],line[1],3)
-            LINES.append(line)
-            LINES.append((line[1],line[0]))
-              
+            add_line_to_court(points_in,x)
+                  
 def draw_points():
     """
     The function draw all points and their radius for better find on board.
@@ -253,9 +254,9 @@ def check_index():
 def evaluate(LINES_):
     for line in LINES_:
         if line == ((200,100),(250,50)) or line == ((250,100),(250,50)) or line == ((300,100),(250,50)):
-            return 1000
+            return 500
         elif line == ((200,550),(250,600))  or line == ((250,550),(250,600)) or line == ((300,550),(250,600)):
-            return -1000
+            return -500       
     return 0
 
 def isMovesLeft(goal_point):
@@ -266,115 +267,119 @@ def isMovesLeft(goal_point):
 
 def find_best_move(point_x):
     global LINES_TEST, possible_moves_minmax
+    
+    bestMove= None
     bestValue = 0
     LINES_T = LINES.copy()
     nears = find_near_points(point_x)
-    #moves = set()
-    random.shuffle(nears)
-    for move in nears:  
-        LINES_TEST = LINES_T.copy()
-        if (point_x.centerx,point_x.centery,move.cords) in LINES_TEST or (move.cords, (point_x.centerx,point_x.centery)) in LINES_TEST:
-                continue    
-        #if ((point_x.centerx,point_x.centery) ,move) in LINES:
-        #    continue
-        #moves.add(((point_x.centerx,point_x.centery), move))
-        #moves.add((move, (point_x.centerx,point_x.centery)))
-        
-        near_m = find_near_points(move.point_pos)
-        random.shuffle(near_m)
-        for move_m in near_m:
-            possible_moves_minmax=True
-            move_value = minimax(move_m,0,False,LINES_TEST)
-            #print('oho', move_value)
-            LINES_TEST = LINES_T.copy()
-            #DISPLAYSURF.fill(FOREST)
-            #draw_court(POINTS_pos)
-            #refresh_display(POINTS_pos)
-            if move_value > bestValue:                
-                bestMove = move     
-                bestValue = move_value 
-        #print('Value for near {0} : {1}'.format(move, move_value))
-        #moves.remove(((point_x.centerx,point_x.centery), move))
-        #moves.remove((move, (point_x.centerx,point_x.centery)))
-            
-    print('Value for best move {0} is {1}'.format(bestMove, bestValue))
+    np.random.shuffle(nears)
     
+    for move in nears:
+        LINES_TEST = LINES_T.copy()
+        possible_moves_minmax=True
+        if (point_x.centerx,point_x.centery,move.cords) in LINES_TEST or (move.cords, (point_x.centerx,point_x.centery)) in LINES_TEST:
+            print('ISTNIEJE')
+            continue 
+        
+        bestnear, bestValue_near = best_minmax(move,LINES_TEST)
+        if bestValue_near > bestValue:                
+            bestMove = bestnear    
+            bestValue = bestValue_near
+             
+    print('Value for best move {0} is {1}'.format(bestMove, bestValue))  
     return bestMove
 
-def minimax(point_pocz, depth, isMax,lines_test):
-    #if(depth > 10):
-     #   pygame.quit()
-    #    sys.exit()
-    global current_point_minmax, possible_moves_minmax
-    x = LINES_TEST
-    value = evaluate(lines_test)
-    
-    if value == 1000:
-        return (value -50*depth)
-    if value == -1000:
-        return (value - 50*depth )
-    if possible_moves_minmax == False and isMax == True:
-        return (-200 - 20*depth)
-    if possible_moves_minmax == False and isMax == False:
-        return (200 - 20*depth)
-    best_ = []
+def best_minmax(move_,lines):   
+    LINES_TEST = LINES.copy()
+    bestM = None
+    bestV = 0
+    near_m = find_near_points(move_.point_pos)
+    np.random.shuffle(near_m)
+    for move_m in near_m:       
+        LINES_TEST = LINES.copy() 
+        move_value = minimax(move_m,0,False)
+        LINES_TEST.clear()
+        #DISPLAYSURF.fill(FOREST)
+        #draw_court(POINTS_pos)
+        #refresh_display(POINTS_pos)
+        if move_value > bestV:                
+            bestM = move_     
+            bestV = move_value
+        print('Value for near {0} : {1}'.format(move_m, move_value)) 
+    return bestM, bestV
 
+def minimax(point_pocz, depth, isMax):
+
+    global possible_moves_minmax
+    #x = lines_test.copy()
+    value = evaluate(LINES_TEST)
+    
+    if value == 500:
+        return value - 6 * depth
+    if value == -500:
+        return value - 6 *depth
+    if possible_moves_minmax == False and isMax == True:
+        return (-200 - 4*depth)
+    if possible_moves_minmax == False and isMax == False:
+        return (200 - 4*depth)
     if isMax:
-        best = -1000
+        best = -500
         nears = find_near_points(point_pocz.point_pos)
-        random.shuffle(nears)
+        np.random.shuffle(nears)
         for point in nears:
             possible_moves_minmax=True
+            
             if (point_pocz.cords,point.cords) in LINES_TEST or (point.cords, point_pocz.cords) in LINES_TEST:
                 continue
-            current_point_minmax = pick_point_for_minmax(point_pocz,point,x,isMax=False)
-            best = max(best, minimax(current_point_minmax,depth+1,isMax = False,lines_test=x))
-        #print('Depth', depth)         
+            current_point_minmax = pick_point_for_minmax(point_pocz,point,isMax=False)
+            if (current_point_minmax.cords,point.cords) in LINES_TEST or (point.cords, current_point_minmax.cords) in LINES_TEST:
+                continue
+            best = max(best, minimax(current_point_minmax,depth+1,isMax = False))
+        print(depth)
         return best
     else:
-        best = 1000
+        best = 500
         nears = find_near_points(point_pocz.point_pos)
-        random.shuffle(nears)
+        np.random.shuffle(nears)
         for point in nears:
             possible_moves_minmax=True
+            
             if (point_pocz.cords,point.cords) in LINES_TEST or (point.cords, point_pocz.cords) in LINES_TEST:
                 continue
-            current_point_minmax = pick_point_for_minmax(point_pocz,point,x,isMax=True)
-            best = min(best, minimax(current_point_minmax,depth+1,isMax = True,lines_test=x))         
+            current_point_minmax = pick_point_for_minmax(point_pocz,point,isMax=True)
+            if (current_point_minmax.cords,point.cords) in LINES_TEST or (point.cords, current_point_minmax.cords) in LINES_TEST:
+                #print('yes')
+                continue
+            best = min(best, minimax(current_point_minmax,depth+1,isMax = True))         
             #lines_test = x.copy()
-        #print('Depth', depth) 
+        print(depth)
         return best
 
-def pick_point_for_minmax(point_x,punkt_sas,LINES_test,isMax):
-    global current_point_minmax, possible_moves_minmax
+def pick_point_for_minmax(point_x,punkt_sas,isMax):
+    global current_point_minmax, possible_moves_minmax, LINES_TEST
     neigh = find_near_points(point_x.point_pos)
     
-    for obj in neigh:
-        if obj.point_radius.collidepoint(punkt_sas.cords):
-            obj.checked = True       
-        else:
-            obj.checked = False
-
-        if obj.checked is True:
+    if punkt_sas in neigh:
             start_point = (point_x.point_pos.centerx, point_x.point_pos.centery)         
-            end_point = obj.cords
+            end_point = punkt_sas.cords
 
-            if (start_point, end_point) in LINES_test or (end_point,start_point) in LINES_test: #IF LINE EXIST RETURN             
+            if (start_point, end_point) in LINES_TEST or (end_point,start_point) in LINES_TEST:
+               #print("LINES EXIST") #IF LINE EXIST RETURN             
                current_point_minmax = point_x
                return current_point_minmax
             else:
-                if isMax is True:
+                
+                if isMax:
                     color = RED
                 else:
                     color = BLUE
-                #time.sleep(0.1)
-                #pygame.draw.line(DISPLAYSURF, color, start_point, end_point, 1)
-                    
+                #time.sleep(2)
+                #pygame.draw.line(DISPLAYSURF, color, start_point, end_point, 1)                   
                 #pygame.display.update()
-                possible_lines = []
-                possibles_lines_for_next_step = []
-                LINES_test.append((start_point,end_point))
-                LINES_test.append((end_point,start_point))
+                possible_lines = set()
+                possibles_lines_for_next_step = set()
+                LINES_TEST.append((start_point,end_point))
+                LINES_TEST.append((end_point,start_point))
                 
                 for x in POINTS_pos:
                     if x.cords is end_point:                
@@ -382,37 +387,36 @@ def pick_point_for_minmax(point_x,punkt_sas,LINES_test,isMax):
 
                         near = find_near_points(current_point_minmax.point_pos,double_lines=True)                  
                         for elem in near:
-                            possible_lines.append((current_point_minmax.cords,elem.cords))
-                            possible_lines.append((elem.cords,current_point_minmax.cords))
+                            possible_lines.add((current_point_minmax.cords,elem.cords))
+                            possible_lines.add((elem.cords,current_point_minmax.cords))
 
                         possibles_lines_for_next_step = possible_lines.copy()
-                    
-                        last_line = LINES_test[-1:][0]
-                                        
+                        last_line = LINES_TEST[-1:][0]                   
                         possibles_lines_for_next_step.remove((last_line[0],last_line[1]))
                         possibles_lines_for_next_step.remove((last_line[1],last_line[0]))
+                
+                        actual_lines = [line for line in possible_lines if line in LINES_TEST]
                         
-
-                        actual_lines = [line for line in possible_lines if line in LINES_test]
-
+                        if len(actual_lines) == (2 * len(near)):
                                
-                        if len(actual_lines) == (2 * len(near)):    
                             possible_moves_minmax = False
-                            #print('Zacial sie')     
-                            #next_n = True
+                            return current_point_minmax                       
                                                                                                                                                     
-                        if any(elem in LINES_test for elem in possibles_lines_for_next_step):
-                            for point in near:
-                                if (point_x.cords,point.cords) in LINES_TEST or (point.cords, point_x.cords) in LINES_TEST:
-                                    continue                                
-                                current_point_minmax = pick_point_for_minmax(current_point_minmax,point,LINES_test,isMax)
-                            return current_point_minmax                        
+                        if any(elem in LINES_TEST for elem in possibles_lines_for_next_step):
+                                while True:
+                                    x = random.choice(near)
+                                    if (point_x.cords,x.cords) in LINES_TEST or (x.cords, point_x.cords) in LINES_TEST:
+                                        pass
+                                    else:
+                                        break
+                                                              
+                                current_point_minmax = pick_point_for_minmax(current_point_minmax,x,isMax)
+                                return current_point_minmax                        
                         else:
                             return current_point_minmax
     current_point_minmax = point_x
     return current_point_minmax
         
-
 def find_near_points(point_p,double_lines=False):
 
     cords = (point_p.centerx,point_p.centery)
@@ -423,12 +427,8 @@ def find_near_points(point_p,double_lines=False):
     for n in near_points:
         for obj in POINTS_pos:
             cords_near = (obj.point_pos.centerx, obj.point_pos.centery)
-            
-            #if double_lines is False:
-                #if (cords,cords_near) in LINES or (cords_near,cords) in LINES or (cords,cords_near) in LINES_TEST or (cords_near,cords) in LINES_TEST :
-                    #continue 
             if n == cords_near:
-                near_n.append(obj)  
+                near_n.append(obj)
     for obj in near_n:
         obj.draw_point(DISPLAYSURF,(obj.point_pos.centerx, obj.point_pos.centery),BLACK,4)  
     return near_n          
@@ -437,42 +437,40 @@ def clear_lines(LINES):
     DISPLAYSURF.fill(FOREST)
 
 def check_goal(obj):
-  
     global someone_won
     if obj.p1_goal == True:
         someone_won=True
         check_index()
-        #value = evaluate(LINES)
-        #print('Wartośc planszy', value)
         print('GAME ENDED: PLAYER: ',player2.name + ' WON!')
-        player2.points = player2.points + 1       
+        player2.points = player2.points + 1 
+        reward = -500
     if obj.p2_goal == True:
         someone_won=True
         check_index()
-        #value = evaluate(LINES)
-        #print('Wartośc planszy', value)
         print('GAME ENDED: PLAYER: ',player1.name + ' WON!')
-        player1.points = player1.points + 1       
+        player1.points = player1.points + 1  
+        reward = -5 * (steps /5) 
 
+    return reward
 def removeDuplicates(lst):       
     return [t for t in (set(tuple(i) for i in lst))] 
 
 def bot_move(current_point):
     end = (250,50)     
     start_pos = (current_point.centerx,current_point.centery)         
-    #path = A_star_alg(POINTS_pos, start_pos, end)
-    path = find_best_move(current_point)
+    path = A_star_alg(POINTS_pos, start_pos, end)
+    #path = find_best_move(current_point)
     #print(path)
     if path is not None:
-        path_cords = path
-    
-        
+        print('ok')
+        path_cords = path[1]
+           
     else:
         print('Nie ma juz wybrow lool')
         neigh = find_near_points(current_point)
         neigh_choice = random.choice(neigh)
         path_cords = neigh_choice.cords    
-    current_point = pick_another_point(current_point,True,mouse_cords_=path_cords.cords)
+    current_point = pick_another_point(current_point,True,mouse_cords_=path_cords)
     #print("Bot wykonał ruch: ",path_cords)
     return current_point
 
@@ -497,16 +495,20 @@ def name_moves(list_moves):
             dict_moves['3'] = x
     return dict_moves
 
+def random_move():
+    k_ = ['1','2','3','4','6','7','8','9']
+    choice = random.choice(k_)
+    return choice
+
 def check_won():
         global POINTS_pos
-
         if someone_won is True:
-                        time.sleep(5)
                         change_turn()
                         clear_lines(LINES)
                         POINTS_pos.clear()
                         
-def change_turn():   
+def change_turn(): 
+
         if player1.turn is False:
             player2.turn=False
             player1.turn=True
@@ -515,12 +517,9 @@ def change_turn():
             player2.turn=True  
 
 def pick_another_point(point_x, bot=False,key=None,mouse_cords_=False):
-    global current_point
-    global active_player
-    global possible_moves
+    global current_point,active_player,possible_moves, someone_won,steps
     
     neigh = find_near_points(point_x)
-    #print(neigh)
     #NUMPAD MOVING
     pos_moves_numpad = []
     for x in neigh:
@@ -559,8 +558,8 @@ def pick_another_point(point_x, bot=False,key=None,mouse_cords_=False):
                 pygame.draw.line(DISPLAYSURF, active_player.color, start_point, end_point, 3)
                 
                 pygame.display.update()             
-                possible_lines = []
-                possibles_lines_for_next_step = []
+                possible_lines = set()
+                possibles_lines_for_next_step = set()
                 LINES.append((start_point,end_point))
                 LINES.append((end_point,start_point))
 
@@ -570,10 +569,11 @@ def pick_another_point(point_x, bot=False,key=None,mouse_cords_=False):
                     if x.cords is end_point:                
                         current_point = x  
                         refresh_display(POINTS_pos)                                                      
-                        near = find_near_points(current_point.point_pos,double_lines=True)                  
+                        near = find_near_points(current_point.point_pos,double_lines=True)
+             
                         for elem in near:
-                            possible_lines.append((current_point.cords,elem.cords))
-                            possible_lines.append((elem.cords,current_point.cords))
+                            possible_lines.add((current_point.cords,elem.cords))
+                            possible_lines.add((elem.cords,current_point.cords))
 
                         ### Do podwojnych ruchów
                         possibles_lines_for_next_step = possible_lines.copy()
@@ -582,7 +582,8 @@ def pick_another_point(point_x, bot=False,key=None,mouse_cords_=False):
                         possibles_lines_for_next_step.remove((last_line[1],last_line[0]))
 
                         actual_lines = [line for line in possible_lines if line in LINES]
-                    
+                        if bot == False:
+                            steps = steps + 1
                         if len(actual_lines) == (2*len(near)):
                             #print('Nie ma więcej ruchów')
                             possible_moves = False
@@ -605,11 +606,18 @@ def draw_text(text,font,color,surface,x,y):
     textRect.topleft = (x, y)
     surface.blit(textObj, textRect)
 
+def clearning_after_win(player):
+    POINTS_pos.clear()
+    PLAYERS.clear()      
+    print('{} Won'.format(player.name))
+    running=False
+    return running
+
 
 click = False
- 
 #MAIN MENU
 def main_menu():
+
     while True:
         DISPLAYSURF.fill(FOREST)
         draw_text('PAPER SOCCER', font, WHITE, DISPLAYSURF ,235, 20)
@@ -645,8 +653,9 @@ def main_menu():
         pygame.display.update()
 #GAME        
 def game_loop(two_player=False):
-    global mouse_x, mouse_y, player1, player2, POINTS_pos, LINES, current_point, someone_won, possible_moves
-    #sys.setrecursionlimit(100000)
+
+    global mouse_x, mouse_y, player1, player2, POINTS_pos, LINES, current_point, someone_won, possible_moves,steps
+    
     running = True
     while running:       
         if not POINTS_pos:
@@ -666,42 +675,20 @@ def game_loop(two_player=False):
             player2_name = player2.name
             player1_points = "Points: {0}".format(player1.points)
             player2_points = "Points: {0}".format(player2.points)
-                
-            
+            steps=0           
             LINES = []
             #point_pos_cords.clear()
-            BALL = (250,300) #Startowa pozycja
-            
+            BALL = (250,300) #Startowa pozycja        
             draw_points() #Rozrysuj punkty i in radius aby były łatwiejsze do wybierania 
             draw_court(POINTS_pos)     
             current_point = check_position(BALL,POINTS_pos)
-                
-            #for x in POINTS_pos:
-                #point_pos_cords.append(x.cords) 
             pick_another_point(current_point,False)
             LINES = removeDuplicates(LINES)
-                
-            #total_seconds = start_ticks - (frame_count // frame_rate)
-            #if total_seconds == 0:
-            #    change_turn()
-            #    frame_count=0
-        
-            #minutes = total_seconds // 60
-            #seconds = total_seconds % 60
-            #output_string = "Time: {0:02}".format(seconds)
-
-        if player1.points == 3:
-            POINTS_pos.clear()
-            PLAYERS.clear()      
-            print('Player 1 Won')
-            running=False
-            return running
-        if player2.points == 3:
-            POINTS_pos.clear() 
-            PLAYERS.clear() 
-            print('Player 2 Won') 
-            running=False
-            return running
+            
+        #if player1.points == 3:
+        #    running = clearning_after_win(player1)
+        #if player2.points == 3:
+        #    running = clearning_after_win(player2)
 
         if two_player is True:
             if player2.turn is True:
@@ -714,6 +701,9 @@ def game_loop(two_player=False):
                 current_point = bot_move(current_point)
             else:
                 active_player_string ="Turn for: {0}".format(player1.name)
+                #time.sleep(0.2)
+                #k = random_move()
+                #current_point = pick_another_point(current_point,False,k)
             
         if possible_moves is False:    
             for player in PLAYERS:
@@ -731,9 +721,9 @@ def game_loop(two_player=False):
         draw_text(player2_name,font_player,BLACK,DISPLAYSURF,20,630)
         draw_text(player1_points,font_player,BLACK,DISPLAYSURF,90,20)
         draw_text(player2_points,font_player,BLACK,DISPLAYSURF,90,630)
-            
-            #frame_count += 1
-            #clock.tick(frame_rate)
+        draw_text(str(steps),font_player,BLACK,DISPLAYSURF,540,160)
+
+      
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
@@ -741,12 +731,12 @@ def game_loop(two_player=False):
             elif event.type == MOUSEMOTION:
                 mouse_x, mouse_y = event.pos 
             elif event.type == MOUSEBUTTONUP:
-                    #refresh_display(POINTS_pos)        
-                #print('Jacek start',(current_point.centerx, current_point.centery))
+                #refresh_display(POINTS_pos)                     
                 current_point = pick_another_point(current_point,False)
-                  
-                # NUMPAD    
+    
+            # NUMPAD    
             elif event.type == KEYDOWN:
+                
                 if event.key == K_KP1:
                     k='7'
                     current_point = pick_another_point(current_point,False,k)
@@ -771,13 +761,17 @@ def game_loop(two_player=False):
                     k='2'
                     current_point = pick_another_point(current_point,False,k)
                 if event.key == K_KP9:
-                    check_index()
-                    #k='3'
-                    #current_point = pick_another_point(current_point,False,k)      
-                    
+                    #check_index()
+                    k='3'
+                    current_point = pick_another_point(current_point,False,k)                         
             elif event.type == KEYUP:
                 pass  
                     
         pygame.display.update()
 
-main_menu()
+#main_menu()
+
+if __name__ == '__main__':
+    game_state = game_loop()
+    #while True:
+        #game_state = game
