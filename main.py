@@ -9,8 +9,6 @@ import numpy as np
 from player import Player
 from points import Points, Node
 
-
-
 pygame.init()
 
 WINDOWWIDTH = 720 
@@ -275,27 +273,18 @@ def find_best_move(point_x):
         LINES_TEST = LINES_T.copy()
         if (point_x.centerx,point_x.centery,move.cords) in LINES_TEST or (move.cords, (point_x.centerx,point_x.centery)) in LINES_TEST:
                 continue    
-        #if ((point_x.centerx,point_x.centery) ,move) in LINES:
-        #    continue
-        #moves.add(((point_x.centerx,point_x.centery), move))
-        #moves.add((move, (point_x.centerx,point_x.centery)))
-        
+       
         near_m = find_near_points(move.point_pos)
         random.shuffle(near_m)
         for move_m in near_m:
             possible_moves_minmax=True
             move_value = minimax(move_m,0,False,LINES_TEST)
-            #print('oho', move_value)
             LINES_TEST = LINES_T.copy()
-            #DISPLAYSURF.fill(FOREST)
-            #draw_court(POINTS_pos)
-            #refresh_display(POINTS_pos)
+ 
             if move_value > bestValue:                
                 bestMove = move     
                 bestValue = move_value 
-        #print('Value for near {0} : {1}'.format(move, move_value))
-        #moves.remove(((point_x.centerx,point_x.centery), move))
-        #moves.remove((move, (point_x.centerx,point_x.centery)))
+
             
     print('Value for best move {0} is {1}'.format(bestMove, bestValue))
     
@@ -392,15 +381,11 @@ def pick_point_for_minmax(point_x,punkt_sas,LINES_test,isMax):
                         possibles_lines_for_next_step.remove((last_line[0],last_line[1]))
                         possibles_lines_for_next_step.remove((last_line[1],last_line[0]))
                         
-
                         actual_lines = [line for line in possible_lines if line in LINES_test]
-
-                               
+                          
                         if len(actual_lines) == (2 * len(near)):    
-                            possible_moves_minmax = False
-                            #print('Zacial sie')     
-                            #next_n = True
-                                                                                                                                                    
+                            possible_moves_minmax = False  
+                            #next_n = True                                                                                                                                                   
                         if any(elem in LINES_test for elem in possibles_lines_for_next_step):
                             for point in near:
                                 if (point_x.cords,point.cords) in LINES_TEST or (point.cords, point_x.cords) in LINES_TEST:
@@ -422,8 +407,7 @@ def find_near_points(point_p,double_lines=False):
     near_n = []
     for n in near_points:
         for obj in POINTS_pos:
-            cords_near = (obj.point_pos.centerx, obj.point_pos.centery)
-            
+            cords_near = (obj.point_pos.centerx, obj.point_pos.centery)          
             #if double_lines is False:
                 #if (cords,cords_near) in LINES or (cords_near,cords) in LINES or (cords,cords_near) in LINES_TEST or (cords_near,cords) in LINES_TEST :
                     #continue 
@@ -434,6 +418,9 @@ def find_near_points(point_p,double_lines=False):
     return near_n          
 
 def clear_lines(LINES):
+    """
+    Refreshing board.
+    """
     DISPLAYSURF.fill(FOREST)
 
 def check_goal(obj):
@@ -442,15 +429,11 @@ def check_goal(obj):
     if obj.p1_goal == True:
         someone_won=True
         check_index()
-        #value = evaluate(LINES)
-        #print('Wartośc planszy', value)
         print('GAME ENDED: PLAYER: ',player2.name + ' WON!')
         player2.points = player2.points + 1       
     if obj.p2_goal == True:
         someone_won=True
         check_index()
-        #value = evaluate(LINES)
-        #print('Wartośc planszy', value)
         print('GAME ENDED: PLAYER: ',player1.name + ' WON!')
         player1.points = player1.points + 1       
 
@@ -460,20 +443,17 @@ def removeDuplicates(lst):
 def bot_move(current_point):
     end = (250,50)     
     start_pos = (current_point.centerx,current_point.centery)         
-    #path = A_star_alg(POINTS_pos, start_pos, end)
-    path = find_best_move(current_point)
-    #print(path)
+    path = A_star_alg(POINTS_pos, start_pos, end)
+    #path = find_best_move(current_point)
     if path is not None:
-        path_cords = path
-    
-        
+        path_cords = path[1]       
     else:
-        print('Nie ma juz wybrow lool')
+        print('Nie ma juz wyborów')
         neigh = find_near_points(current_point)
         neigh_choice = random.choice(neigh)
         path_cords = neigh_choice.cords    
-    current_point = pick_another_point(current_point,True,mouse_cords_=path_cords.cords)
-    #print("Bot wykonał ruch: ",path_cords)
+    current_point = pick_another_point(current_point,True,mouse_cords_=path_cords)
+    #current_point = pick_another_point(current_point,True,mouse_cords_=path_cords.cords) // Przy minmax
     return current_point
 
 def name_moves(list_moves):
@@ -520,7 +500,7 @@ def pick_another_point(point_x, bot=False,key=None,mouse_cords_=False):
     global possible_moves
     
     neigh = find_near_points(point_x)
-    #print(neigh)
+
     #NUMPAD MOVING
     pos_moves_numpad = []
     for x in neigh:
@@ -680,15 +660,7 @@ def game_loop(two_player=False):
                 #point_pos_cords.append(x.cords) 
             pick_another_point(current_point,False)
             LINES = removeDuplicates(LINES)
-                
-            #total_seconds = start_ticks - (frame_count // frame_rate)
-            #if total_seconds == 0:
-            #    change_turn()
-            #    frame_count=0
-        
-            #minutes = total_seconds // 60
-            #seconds = total_seconds % 60
-            #output_string = "Time: {0:02}".format(seconds)
+         
 
         if player1.points == 3:
             POINTS_pos.clear()
@@ -771,9 +743,8 @@ def game_loop(two_player=False):
                     k='2'
                     current_point = pick_another_point(current_point,False,k)
                 if event.key == K_KP9:
-                    check_index()
-                    #k='3'
-                    #current_point = pick_another_point(current_point,False,k)      
+                    k='3'
+                    current_point = pick_another_point(current_point,False,k)      
                     
             elif event.type == KEYUP:
                 pass  
